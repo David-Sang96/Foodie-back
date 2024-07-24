@@ -5,8 +5,20 @@ const Recipe = require('../model/recipe');
 
 exports.getRecipes = async (req, res, next) => {
   try {
-    const recipes = await Recipe.find();
-    return res.json(recipes);
+    const page = parseInt(req.query.page) || 1;
+    const limit = 6;
+
+    const recipes = await Recipe.find()
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const totalRecipes = await Recipe.find().countDocuments();
+    const totalPages = Math.ceil(totalRecipes / limit);
+    return res.json({
+      recipes,
+      totalRecipes,
+      totalPages,
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ msg: 'internet server error' });
