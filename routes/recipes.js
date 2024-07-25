@@ -35,7 +35,7 @@ router
 router
   .route('/:id')
   .get(getSingleRecipe)
-  .patch(updateRecipe)
+  .patch(validateCreateRecipe, handleValidatorErrMsg, updateRecipe)
   .delete(deleteRecipe);
 
 module.exports = router;

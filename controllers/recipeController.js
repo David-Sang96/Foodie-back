@@ -12,7 +12,7 @@ exports.getRecipes = async (req, res, next) => {
       .skip((page - 1) * limit)
       .limit(limit);
 
-    const totalRecipes = await Recipe.find().countDocuments();
+    const totalRecipes = await Recipe.countDocuments();
     const totalPages = Math.ceil(totalRecipes / limit);
     return res.json({
       recipes,
