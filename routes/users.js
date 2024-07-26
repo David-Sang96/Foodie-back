@@ -4,7 +4,7 @@ const router = express.Router();
 
 const handleValidatorErrMsg = require('../middlewares/handleValidatorMsg');
 const User = require('../model/user');
-const { login, signup } = require('../controllers/authController');
+const { login, register } = require('../controllers/authController');
 
 router.post(
   '/log-in',
@@ -29,12 +29,12 @@ router.post(
 router.post(
   '/register',
   [
-    body('name')
+    body('username')
       .trim()
       .notEmpty()
-      .withMessage('Name is required')
-      .isLength({ min: 3 })
-      .withMessage('Name must be at least 3 characters long'),
+      .withMessage('UserName is required')
+      .isLength({ min: 4 })
+      .withMessage('UserName must be at least 4 characters long'),
     body('email')
       .trim()
       .notEmpty()
@@ -51,17 +51,23 @@ router.post(
       .trim()
       .notEmpty()
       .withMessage('Password is required')
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters long')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
       .isAlphanumeric()
-      .withMessage(
-        'Password must be at least 6 characters long and contains only letters and numbers.'
-      ),
-    // .matches(/^[\w!@#$%^&*()\-_=+]+$/)
-    //.withMessage('Password can contain letters, numbers, and special characters.'),
+      .withMessage('Password must be contains only letters and numbers.'),
+    body('passwordConfirmation')
+      .trim()
+      .notEmpty()
+      .withMessage('PasswordConfirmation is required')
+      .custom((value, { req }) => {
+        if (value !== req.body.password) {
+          throw new Error("Passwords don't match");
+        }
+        return true;
+      }),
   ],
   handleValidatorErrMsg,
-  signup
+  register
 );
 
 module.exports = router;

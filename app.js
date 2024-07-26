@@ -10,7 +10,8 @@ const globalErrorHandler = require('./controllers/errorController');
 const app = express();
 
 app.use(morgan('dev'));
-app.use(cors({ origin: '*' }));
+// allow cookie to set and remove on localhost:2500
+app.use(cors({ origin: 'http://localhost:2500', credentials: true }));
 app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
