@@ -1,7 +1,9 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable no-undef */
 const jwt = require('jsonwebtoken');
 const { promisify } = require('util');
 const User = require('../model/user');
+const responseFn = require('../ultis/responseFn');
 
 module.exports = async (req, res, next) => {
   try {
@@ -16,30 +18,28 @@ module.exports = async (req, res, next) => {
       throw new Error('Please login to get access');
     }
 
-    const isMatchToken = await promisify(jwt.verify)(
-      token,
-      process.env.JWT_SECRET
-    );
-    if (!isMatchToken) {
-      throw new Error('Invalid token.Please log in again!');
+    let decoded;
+    try {
+      decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+    } catch (err) {
+      // Catch the error and throw a new error with a custom message
+      throw new Error('Invalid token. Please log in again!');
     }
 
     // check if user still exist
-    const currentUser = await User.findById(isMatchToken.id);
+    const currentUser = await User.findById(decoded.id);
     if (!currentUser) {
       throw new Error('The user belonging to this token does no longer exist.');
     }
 
     // check if user changed password after the token was created
-    if (currentUser.changedPasswordAfter(isMatchToken.iat)) {
+    if (currentUser.changedPasswordAfter(decoded.iat)) {
       throw new Error('User recently changed the password.Login again!');
     }
 
     req.user = currentUser;
     next();
   } catch (error) {
-    error.statusCode = 401;
-    error.status = 'fail';
-    next(error);
+    return responseFn(res, 401, 'fail', error.message);
   }
 };

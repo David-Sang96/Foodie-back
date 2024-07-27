@@ -11,7 +11,6 @@ const {
   updateRecipe,
   deleteRecipe,
 } = require('../controllers/recipeController');
-const protect = require('../middlewares/protect');
 
 const validateCreateRecipe = [
   body('title')
@@ -31,12 +30,12 @@ const validateCreateRecipe = [
 
 router
   .route('/')
-  .get(protect, getRecipes)
-  .post(protect, validateCreateRecipe, handleValidatorErrMsg, createRecipe);
+  .get(getRecipes)
+  .post(validateCreateRecipe, handleValidatorErrMsg, createRecipe);
 router
   .route('/:id')
   .get(getSingleRecipe)
-  .patch(protect, validateCreateRecipe, handleValidatorErrMsg, updateRecipe)
-  .delete(protect, deleteRecipe);
+  .patch(validateCreateRecipe, handleValidatorErrMsg, updateRecipe)
+  .delete(deleteRecipe);
 
 module.exports = router;

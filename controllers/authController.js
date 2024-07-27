@@ -1,10 +1,10 @@
 const User = require('../model/user');
 const signJWTToken = require('../ultis/createToken');
+const responseFn = require('../ultis/responseFn');
 
-exports.register = async (req, res, next) => {
+exports.register = async (req, res) => {
   try {
     const { username, email, password, passwordConfirmation } = req.body;
-
     const user = await User.register(
       username,
       email,
@@ -17,32 +17,33 @@ exports.register = async (req, res, next) => {
       httpOnly: true,
       maxAge: 3 * 24 * 60 * 60 * 1000,
     });
-
     return res.status(201).json({
       user,
       token,
     });
   } catch (error) {
-    error.statusCode = 400;
-    error.status = 'fail';
-    next(error);
+    return responseFn(res, 400, 'fail', error.message);
   }
 };
 
-exports.login = async (req, res, next) => {
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email }).select('-__v');
-
-    if (!user || !(await user.comparePassword(password, user.password))) {
-      throw new Error('Incorrect email or password');
-    }
-
+    const user = await User.login(email, password);
+    user.password = undefined;
     const token = signJWTToken(user);
+
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      maxAge: 3 * 24 * 60 * 60 * 1000,
+    });
     return res.json({ user, token });
   } catch (error) {
-    error.statusCode = 400;
-    error.status = 'fail';
-    next(error);
+    return responseFn(res, 400, 'fail', error.message);
   }
+};
+
+exports.logout = (req, res) => {
+  res.cookie('jwt', '', { maxAge: 1 });
+  return responseFn(res, 200, 'success', 'user logged out.');
 };

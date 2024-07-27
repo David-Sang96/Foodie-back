@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      minLength: 3,
+      minLength: 4,
     },
     email: {
       type: String,
@@ -53,7 +53,7 @@ userSchema.statics.register = async function (
 ) {
   const existedUser = await this.findOne({ email });
   if (existedUser) {
-    throw new Error('user already exist.');
+    throw new Error('User already exist.');
   }
   const user = await this.create({
     username,
@@ -66,11 +66,13 @@ userSchema.statics.register = async function (
   return user;
 };
 
-userSchema.methods.comparePassword = async function (
-  logInPassword,
-  registerPassword
-) {
-  return await bcrypt.compare(logInPassword, registerPassword);
+userSchema.statics.login = async function (email, password) {
+  const user = await this.findOne({ email }).select('-__v +password');
+
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    throw new Error('Incorrect email or password');
+  }
+  return user;
 };
 
 userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
