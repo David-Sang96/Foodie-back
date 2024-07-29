@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const multer = require('multer');
 
 const handleValidatorErrMsg = require('../middlewares/handleValidatorMsg');
+const uploadFile = require('../ultis/upload');
 
 const {
   getRecipes,
@@ -10,6 +12,7 @@ const {
   createRecipe,
   updateRecipe,
   deleteRecipe,
+  upload,
 } = require('../controllers/recipeController');
 
 const validateCreateRecipe = [
@@ -32,10 +35,42 @@ router
   .route('/')
   .get(getRecipes)
   .post(validateCreateRecipe, handleValidatorErrMsg, createRecipe);
+
 router
   .route('/:id')
   .get(getSingleRecipe)
   .patch(validateCreateRecipe, handleValidatorErrMsg, updateRecipe)
   .delete(deleteRecipe);
+
+router.post(
+  '/:id/upload',
+  (req, res, next) => {
+    uploadFile(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({
+          status: 'fail',
+          message: { msg: err.message, path: 'photo' },
+        });
+      } else if (err) {
+        return res.status(500).json({
+          status: 'fail',
+          message: { msg: 'Internal server error' },
+        });
+      }
+      next();
+    });
+  },
+  [
+    body('photo').custom((value, { req }) => {
+      console.log(req.file);
+      if (!req.file) {
+        throw new Error('Photo is required');
+      }
+      return true;
+    }),
+  ],
+  handleValidatorErrMsg,
+  upload
+);
 
 module.exports = router;

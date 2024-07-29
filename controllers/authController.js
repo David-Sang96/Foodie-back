@@ -47,3 +47,7 @@ exports.logout = (req, res) => {
   res.cookie('jwt', '', { maxAge: 1 });
   return responseFn(res, 200, 'success', 'user logged out.');
 };
+
+exports.authUser = (req, res) => {
+  return res.json(req.user);
+};

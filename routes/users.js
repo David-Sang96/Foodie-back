@@ -4,7 +4,13 @@ const router = express.Router();
 
 const handleValidatorErrMsg = require('../middlewares/handleValidatorMsg');
 const User = require('../model/user');
-const { login, register, logout } = require('../controllers/authController');
+const {
+  login,
+  register,
+  logout,
+  authUser,
+} = require('../controllers/authController');
+const protect = require('../middlewares/protect');
 
 router.post(
   '/register',
@@ -73,5 +79,6 @@ router.post(
 );
 
 router.post('/log-out', logout);
+router.get('/is-auth', protect, authUser);
 
 module.exports = router;
