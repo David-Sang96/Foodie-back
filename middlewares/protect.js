@@ -14,6 +14,7 @@ module.exports = async (req, res, next) => {
     ) {
       token = req.headers.authorization.split(' ')[1];
     }
+
     if (!token) {
       throw new Error('Please login to get access');
     }
@@ -22,7 +23,6 @@ module.exports = async (req, res, next) => {
     try {
       decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
     } catch (err) {
-      // Catch the error and throw a new error with a custom message
       throw new Error('Invalid token. Please log in again!');
     }
 

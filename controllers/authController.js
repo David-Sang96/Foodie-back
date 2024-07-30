@@ -1,6 +1,9 @@
+const crypto = require('crypto');
+
 const User = require('../model/user');
-const signJWTToken = require('../ultis/createToken');
+const createSendToken = require('../ultis/createSendToken');
 const responseFn = require('../ultis/responseFn');
+const sendEmail = require('../ultis/sendEmail');
 
 exports.register = async (req, res) => {
   try {
@@ -11,16 +14,7 @@ exports.register = async (req, res) => {
       password,
       passwordConfirmation
     );
-    const token = signJWTToken(user);
-
-    res.cookie('jwt', token, {
-      httpOnly: true,
-      maxAge: 3 * 24 * 60 * 60 * 1000,
-    });
-    return res.status(201).json({
-      user,
-      token,
-    });
+    createSendToken(res, user, 201);
   } catch (error) {
     return responseFn(res, 400, 'fail', error.message);
   }
@@ -30,24 +24,97 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.login(email, password);
-    user.password = undefined;
-    const token = signJWTToken(user);
-
-    res.cookie('jwt', token, {
-      httpOnly: true,
-      maxAge: 3 * 24 * 60 * 60 * 1000,
-    });
-    return res.json({ user, token });
+    createSendToken(res, user, 200);
   } catch (error) {
     return responseFn(res, 400, 'fail', error.message);
   }
 };
 
 exports.logout = (req, res) => {
-  res.cookie('jwt', '', { maxAge: 1 });
-  return responseFn(res, 200, 'success', 'user logged out.');
+  try {
+    res.cookie('jwt', 'logged out', { maxAge: 5000 });
+    return responseFn(res, 200, 'success', 'user logged out.');
+  } catch (error) {
+    return responseFn(res, 400, 'fail', error.message);
+  }
 };
 
 exports.authUser = (req, res) => {
   return res.json(req.user);
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      return responseFn(
+        res,
+        404,
+        'fail',
+        'There is no user with this email address.'
+      );
+    }
+    const resetToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // send it to user's email
+    const resetPasswordURL = `${req.protocol}://${req.get(
+      'host'
+    )}/api/v1/users/reset-password/${resetToken}`;
+
+    try {
+      await sendEmail({
+        viewFileName: 'resetEmail',
+        data: { resetURL: resetPasswordURL },
+        to: email,
+        subject: 'Your password reset token (valid for 10min)',
+      });
+
+      return responseFn(res, 200, 'success', 'Token sent to email!');
+    } catch (error) {
+      console.log(error);
+      user.passwordResetToken = undefined;
+      user.passwordResetTokenExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return responseFn(res, 500, 'fail', error.message);
+    }
+  } catch (error) {
+    console.log(error);
+    return responseFn(res, 400, 'fail', error.message);
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { resetToken } = req.params;
+
+    console.log(resetToken);
+
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetTokenExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      throw new Error('Reset Token is invalid or has expired');
+    }
+
+    user.password = req.body.password;
+    user.passwordConfirmation = req.body.passwordConfirmation;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpires = undefined;
+    await user.save();
+
+    createSendToken(res, user, 200);
+  } catch (error) {
+    console.log(error);
+    return responseFn(res, 400, 'fail', error.message);
+  }
 };

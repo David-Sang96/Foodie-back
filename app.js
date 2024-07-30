@@ -15,6 +15,9 @@ app.use(morgan('dev'));
 app.use(cors({ origin: 'http://localhost:2500', credentials: true }));
 app.use(cookieParser());
 
+app.set('views', './views');
+app.set('view engine', 'ejs');
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.static('public'));

@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const Recipe = require('../model/recipe');
 const responseFn = require('../ultis/responseFn');
 const deleteFile = require('../ultis/deleteFile');
+const User = require('../model/user');
+const emailQueue = require('../queues/emailQueue');
 
 exports.getRecipes = async (req, res, next) => {
   try {
@@ -41,7 +43,7 @@ exports.getSingleRecipe = async (req, res, next) => {
     return res.json(recipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', 'internet server error');
+    return responseFn(res, 500, 'fail', error.message);
   }
 };
 
@@ -49,10 +51,29 @@ exports.createRecipe = async (req, res, next) => {
   try {
     const { title, description, ingredients } = req.body;
     const recipe = await Recipe.create({ title, description, ingredients });
+
+    // send mails to all users (marketing email)
+    const users = await User.find().select('email');
+    const userEmails = users
+      .map((user) => user.email)
+      .filter((email) => email !== req.user.email);
+
+    // email queue
+    emailQueue.add({
+      viewFileName: 'email',
+      data: {
+        name: req.user.username,
+        recipeTitle: title,
+      },
+      from: req.user.email,
+      to: userEmails,
+      subject: 'New Recipe is created by someone.',
+    });
+
     return res.status(201).json(recipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', 'internet server error');
+    return responseFn(res, 500, 'fail', error.message);
   }
 };
 
@@ -82,7 +103,7 @@ exports.updateRecipe = async (req, res, next) => {
     return res.json(updatedRecipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', 'internet server error');
+    return responseFn(res, 500, 'fail', error.message);
   }
 };
 
@@ -102,12 +123,11 @@ exports.deleteRecipe = async (req, res, next) => {
     return res.status(204).json(recipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', 'internet server error');
+    return responseFn(res, 500, 'fail', error.message);
   }
 };
 
 exports.upload = async (req, res, next) => {
-  console.log(req.file);
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -129,6 +149,6 @@ exports.upload = async (req, res, next) => {
     return responseFn(res, 201, 'success', 'Image uploaded', updatedRecipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', 'internet server error');
+    return responseFn(res, 500, 'fail', error.message);
   }
 };
