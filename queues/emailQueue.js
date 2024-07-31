@@ -1,8 +1,9 @@
+/* eslint-disable no-undef */
 const Queue = require('bull');
 const sendEmail = require('../ultis/sendEmail');
 
 const emailQueue = new Queue('emailQueue', {
-  redis: { port: 6379, host: '127.0.0.1' },
+  redis: { port: process.env.REDIS_PORT, host: process.env.REDIS_HOST },
 });
 
 emailQueue.process(async (job) => {

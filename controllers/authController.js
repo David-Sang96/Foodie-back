@@ -1,9 +1,11 @@
+/* eslint-disable no-undef */
 const crypto = require('crypto');
 
 const User = require('../model/user');
 const createSendToken = require('../ultis/createSendToken');
 const responseFn = require('../ultis/responseFn');
 const sendEmail = require('../ultis/sendEmail');
+const emailQueue = require('../queues/emailQueue');
 
 exports.register = async (req, res) => {
   try {
@@ -14,6 +16,19 @@ exports.register = async (req, res) => {
       password,
       passwordConfirmation
     );
+
+    // email queue
+    const emailData = {
+      viewFileName: 'welcomeUser',
+      data: {
+        name: username,
+      },
+      to: email,
+      subject: 'Welcome From My Application.',
+    };
+
+    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+
     createSendToken(res, user, 201);
   } catch (error) {
     return responseFn(res, 400, 'fail', error.message);
@@ -59,9 +74,7 @@ exports.forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // send it to user's email
-    const resetPasswordURL = `${req.protocol}://${req.get(
-      'host'
-    )}/api/v1/users/reset-password/${resetToken}`;
+    const resetPasswordURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     try {
       await sendEmail({
@@ -89,9 +102,6 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const { resetToken } = req.params;
-
-    console.log(resetToken);
-
     const hashedToken = crypto
       .createHash('sha256')
       .update(resetToken)

@@ -52,9 +52,9 @@ router.post(
           message: { msg: err.message, path: 'photo' },
         });
       } else if (err) {
-        return res.status(500).json({
+        return res.status(400).json({
           status: 'fail',
-          message: { msg: 'Internal server error' },
+          message: { msg: err.message, path: 'photo' },
         });
       }
       next();

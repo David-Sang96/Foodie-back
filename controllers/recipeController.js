@@ -59,16 +59,17 @@ exports.createRecipe = async (req, res, next) => {
       .filter((email) => email !== req.user.email);
 
     // email queue
-    emailQueue.add({
+    const emailData = {
       viewFileName: 'email',
       data: {
         name: req.user.username,
         recipeTitle: title,
       },
-      from: req.user.email,
       to: userEmails,
       subject: 'New Recipe is created by someone.',
-    });
+    };
+
+    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
 
     return res.status(201).json(recipe);
   } catch (error) {
