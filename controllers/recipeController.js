@@ -50,7 +50,12 @@ exports.getSingleRecipe = async (req, res, next) => {
 exports.createRecipe = async (req, res, next) => {
   try {
     const { title, description, ingredients } = req.body;
-    const recipe = await Recipe.create({ title, description, ingredients });
+    const recipe = await Recipe.create({
+      title,
+      description,
+      ingredients: JSON.parse(ingredients),
+      photo: '/' + req.file.filename,
+    });
 
     // send mails to all users (marketing email)
     const users = await User.find().select('email');
@@ -81,6 +86,8 @@ exports.createRecipe = async (req, res, next) => {
 exports.updateRecipe = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { title, description, ingredients } = req.body;
+
     if (!mongoose.isValidObjectId(id)) {
       return responseFn(res, 400, 'fail', `this ${id} is invalid.`);
     }
@@ -91,7 +98,12 @@ exports.updateRecipe = async (req, res, next) => {
       return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
     }
 
-    const updatedData = { ...req.body };
+    const updatedData = {
+      title,
+      description,
+      ingredients: JSON.parse(ingredients),
+      photo: '/' + req.file.filename,
+    };
 
     // Update the recipe document
     const updatedRecipe = await Recipe.findByIdAndUpdate(id, updatedData, {
@@ -116,38 +128,10 @@ exports.deleteRecipe = async (req, res, next) => {
     }
 
     const recipe = await Recipe.findByIdAndDelete(id);
-    if (!recipe) {
-      return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
-    }
+
     await deleteFile(__dirname + '/../public' + recipe.photo);
 
     return res.status(204).json(recipe);
-  } catch (error) {
-    console.log(error);
-    return responseFn(res, 500, 'fail', error.message);
-  }
-};
-
-exports.upload = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) {
-      return responseFn(res, 400, 'fail', `this ${id} is invalid.`);
-    }
-
-    const recipe = await Recipe.findById(id);
-    if (!recipe) {
-      return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
-    }
-
-    const updatedRecipe = await Recipe.findByIdAndUpdate(
-      id,
-      {
-        photo: '/' + req.file.filename,
-      },
-      { new: true }
-    );
-    return responseFn(res, 201, 'success', 'Image uploaded', updatedRecipe);
   } catch (error) {
     console.log(error);
     return responseFn(res, 500, 'fail', error.message);
