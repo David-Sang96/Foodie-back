@@ -12,6 +12,7 @@ const {
   authUser,
   forgotPassword,
   resetPassword,
+  updatePassword,
 } = require('../controllers/authController');
 const protect = require('../middlewares/protect');
 
@@ -55,7 +56,9 @@ router.post(
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters long')
       .isAlphanumeric()
-      .withMessage('Password must be contains only letters and numbers.'),
+      .withMessage(
+        'Password must be contain no space with only letters and numbers.'
+      ),
     body('passwordConfirmation')
       .trim()
       .notEmpty()
@@ -122,7 +125,9 @@ router.patch(
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters long')
       .isAlphanumeric()
-      .withMessage('Password must be contains only letters and numbers.'),
+      .withMessage(
+        'Password must be contains no space with only letters and numbers.'
+      ),
     body('passwordConfirmation')
       .trim()
       .notEmpty()
@@ -136,6 +141,46 @@ router.patch(
   ],
   handleValidatorErrMsg,
   resetPassword
+);
+
+router.patch(
+  '/update-my-password',
+
+  [
+    body('password')
+      .trim()
+      .notEmpty()
+      .withMessage('Password is required')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
+      .isAlphanumeric()
+      .withMessage(
+        'Password must be contains no space with only letters and numbers.'
+      ),
+    body('newPassword')
+      .trim()
+      .notEmpty()
+      .withMessage('New Password is required')
+      .isLength({ min: 8 })
+      .withMessage('New Password must be at least 8 characters long')
+      .isAlphanumeric()
+      .withMessage(
+        'New Password must be contains no space with only letters and numbers.'
+      ),
+    body('passwordConfirmation')
+      .trim()
+      .notEmpty()
+      .withMessage('PasswordConfirmation is required')
+      .custom((value, { req }) => {
+        if (value !== req.body.newPassword) {
+          throw new Error("New Passwords don't match");
+        }
+        return true;
+      }),
+  ],
+  handleValidatorErrMsg,
+  protect,
+  updatePassword
 );
 
 module.exports = router;

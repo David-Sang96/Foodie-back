@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 const User = require('../model/user');
 const createSendToken = require('../ultis/createSendToken');
@@ -79,9 +80,9 @@ exports.forgotPassword = async (req, res) => {
     try {
       await sendEmail({
         viewFileName: 'resetEmail',
-        data: { resetURL: resetPasswordURL },
+        data: { resetURL: resetPasswordURL, name: user.username },
         to: email,
-        subject: 'Your password reset token (valid for 10min)',
+        subject: 'Your password reset token ',
       });
 
       return responseFn(res, 200, 'success', 'Token sent to email!');
@@ -116,12 +117,63 @@ exports.resetPassword = async (req, res) => {
       throw new Error('Reset Token is invalid or has expired');
     }
 
+    // email queue
+    const emailData = {
+      viewFileName: 'passwordUpdate',
+      data: {
+        name: user.username,
+      },
+      to: user.email,
+      subject: 'Password Reset Success.',
+    };
+
+    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+
     user.password = req.body.password;
     user.passwordConfirmation = req.body.passwordConfirmation;
     user.passwordResetToken = undefined;
     user.passwordResetTokenExpires = undefined;
     await user.save();
 
+    createSendToken(res, user, 200);
+  } catch (error) {
+    console.log(error);
+    return responseFn(res, 400, 'fail', error.message);
+  }
+};
+
+exports.updatePassword = async (req, res) => {
+  try {
+    const { password, newPassword, passwordConfirmation } = req.body;
+
+    const user = await User.findById(req.user._id).select('+password');
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({
+        status: 'fail',
+        message: { msg: 'Your current password is wrong.', path: 'password' },
+      });
+    }
+
+    // email queue
+    const emailData = {
+      viewFileName: 'passwordUpdate',
+      data: {
+        name: user.username,
+      },
+      to: user.email,
+      subject: 'Password Update Success.',
+    };
+
+    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+
+    user.password = newPassword;
+    user.passwordConfirmation = passwordConfirmation;
+    await user.save();
+
+    user.password = undefined;
+
+    // 4) log user in, send JWT
     createSendToken(res, user, 200);
   } catch (error) {
     console.log(error);

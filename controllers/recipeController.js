@@ -55,6 +55,7 @@ exports.createRecipe = async (req, res, next) => {
       description,
       ingredients: JSON.parse(ingredients),
       photo: '/' + req.file.filename,
+      userId: req.user._id,
     });
 
     // send mails to all users (marketing email)
@@ -98,6 +99,10 @@ exports.updateRecipe = async (req, res, next) => {
       return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
     }
 
+    if (req.user._id.toString() !== recipe.userId.toString()) {
+      return responseFn(res, 401, 'fail', "You don't have access.");
+    }
+
     const updatedData = {
       title,
       description,
@@ -127,7 +132,16 @@ exports.deleteRecipe = async (req, res, next) => {
       return responseFn(res, 400, 'fail', `this ${id} is invalid.`);
     }
 
-    const recipe = await Recipe.findByIdAndDelete(id);
+    const recipe = await Recipe.findById(id);
+    if (!recipe) {
+      return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
+    }
+
+    if (req.user._id !== recipe.userId) {
+      return responseFn(res, 401, 'fail', "You don't have access.");
+    }
+
+    await Recipe.findByIdAndDelete(id);
 
     await deleteFile(__dirname + '/../public' + recipe.photo);
 

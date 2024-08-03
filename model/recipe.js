@@ -19,7 +19,15 @@ const recipeSchema = new mongoose.Schema(
         },
       },
     },
-    photo: String,
+    photo: {
+      type: String,
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'User',
+      required: true,
+    },
   },
   { timestamps: true }
 );
