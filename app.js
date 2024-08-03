@@ -7,6 +7,7 @@ const recipeRoutes = require('./routes/recipes');
 const userRoutes = require('./routes/users');
 const profileRoute = require('./routes/profile');
 const uploadRoute = require('./routes/upload');
+const favoriteRoute = require('./routes/favorite');
 const responseFn = require('./ultis/responseFn');
 const protect = require('./middlewares/protect');
 
@@ -28,6 +29,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/recipes', protect, recipeRoutes);
 app.use('/api/v1/profile', protect, profileRoute);
 app.use('/api/v1/upload', protect, uploadRoute);
+app.use('/api/v1/favorite', protect, favoriteRoute);
 
 app.all('*', (req, res) => {
   responseFn(res, 404, 'fail', `Can't find ${req.originalUrl} on this server!`);
