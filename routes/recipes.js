@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 const multer = require('multer');
 
 const {
@@ -10,6 +10,7 @@ const {
   createRecipe,
   updateRecipe,
   deleteRecipe,
+  filterRecipes,
 } = require('../controllers/recipeController');
 const uploadFile = require('../ultis/upload');
 const handleValidatorErrMsg = require('../middlewares/handleValidatorMsg');
@@ -46,6 +47,15 @@ const validateCreateRecipe = [
   }),
 ];
 
+const validateSearchKey = [
+  query('searchKey')
+    .trim()
+    .escape() //Sanitizes the input by converting special characters to their HTML entities. This helps prevent injection attacks.
+    .notEmpty()
+    .withMessage('searchKey cannot be empty.'),
+  handleValidatorErrMsg,
+];
+
 router
   .route('/')
   .get(getRecipes)
@@ -70,6 +80,8 @@ router
     handleValidatorErrMsg,
     createRecipe
   );
+
+router.route('/filter').get(validateSearchKey, filterRecipes);
 
 router
   .route('/:id')

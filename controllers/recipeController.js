@@ -2,10 +2,12 @@
 const mongoose = require('mongoose');
 
 const Recipe = require('../model/recipe');
+const FavoriteRecipe = require('../model/favoriteRecipe');
 const responseFn = require('../ultis/responseFn');
 const deleteFile = require('../ultis/deleteFile');
 const User = require('../model/user');
 const emailQueue = require('../queues/emailQueue');
+const { uploadImage, deleteImage } = require('./uploadController');
 
 exports.getRecipes = async (req, res, next) => {
   try {
@@ -50,12 +52,18 @@ exports.getSingleRecipe = async (req, res, next) => {
 exports.createRecipe = async (req, res, next) => {
   try {
     const { title, description, ingredients } = req.body;
-    const recipe = await Recipe.create({
+
+    // Upload the image to Cloudinary
+    const { url, public_id } = await uploadImage(req.file.path);
+
+    // Create the new recipe with the photo URL
+    const newRecipe = await Recipe.create({
       title,
       description,
       ingredients: JSON.parse(ingredients),
-      photo: '/' + req.file.filename,
+      photo: url,
       userId: req.user._id,
+      public_id,
     });
 
     // send mails to all users (marketing email)
@@ -77,7 +85,7 @@ exports.createRecipe = async (req, res, next) => {
 
     emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
 
-    return res.status(201).json(recipe);
+    return res.status(201).json(newRecipe);
   } catch (error) {
     console.log(error);
     return responseFn(res, 500, 'fail', error.message);
@@ -103,11 +111,15 @@ exports.updateRecipe = async (req, res, next) => {
       return responseFn(res, 401, 'fail', "You don't have access.");
     }
 
+    // Upload the image to Cloudinary
+    const { url, public_id } = await uploadImage(req.file.path);
+
     const updatedData = {
       title,
       description,
       ingredients: JSON.parse(ingredients),
-      photo: '/' + req.file.filename,
+      photo: url,
+      public_id,
     };
 
     // Update the recipe document
@@ -115,8 +127,6 @@ exports.updateRecipe = async (req, res, next) => {
       runValidators: true,
       new: true,
     });
-
-    await deleteFile(__dirname + '/../public' + recipe.photo);
 
     return res.json(updatedRecipe);
   } catch (error) {
@@ -137,15 +147,39 @@ exports.deleteRecipe = async (req, res, next) => {
       return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
     }
 
-    if (req.user._id !== recipe.userId) {
+    if (!req.user || req.user._id.toString() !== recipe.userId.toString()) {
       return responseFn(res, 401, 'fail', "You don't have access.");
     }
 
-    await Recipe.findByIdAndDelete(id);
+    await deleteImage(recipe.public_id);
 
-    await deleteFile(__dirname + '/../public' + recipe.photo);
+    await Recipe.findByIdAndDelete(recipe._id);
+
+    await FavoriteRecipe.deleteMany({ recipeId: recipe._id });
 
     return res.status(204).json(recipe);
+  } catch (error) {
+    console.log(error);
+    return responseFn(res, 500, 'fail', error.message);
+  }
+};
+
+exports.filterRecipes = async (req, res, next) => {
+  try {
+    const { searchKey } = req.query;
+    if (!searchKey) {
+      return responseFn(res, 400, 'fail', 'This filter is invalid.');
+    }
+    const recipes = await Recipe.find({
+      $or: [
+        { title: { $regex: searchKey, $options: 'i' } },
+        { description: { $regex: searchKey, $options: 'i' } },
+      ],
+    });
+    if (!recipes || recipes.length === 0) {
+      return responseFn(res, 400, 'fail', 'No recipe found.');
+    }
+    return res.json({ recipes });
   } catch (error) {
     console.log(error);
     return responseFn(res, 500, 'fail', error.message);

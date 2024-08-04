@@ -28,6 +28,10 @@ const recipeSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    public_id: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );

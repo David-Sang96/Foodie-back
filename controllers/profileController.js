@@ -1,12 +1,14 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
-const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const User = require('../model/user');
+const FavoriteRecipe = require('../model/favoriteRecipe');
+const Recipe = require('../model/recipe');
 const responseFn = require('../ultis/responseFn');
 const emailQueue = require('../queues/emailQueue');
 const deleteFile = require('../ultis/deleteFile');
+const { uploadImage } = require('./uploadController');
 
 exports.getUserData = async (req, res, next) => {
   try {
@@ -39,23 +41,16 @@ exports.updateUser = async (req, res, next) => {
       });
     }
 
-    // email queue
-    const emailData = {
-      viewFileName: 'updateProfile',
-      data: {
-        name: user.username,
-      },
-      to: user.email,
-      subject: 'Profile has been updated.',
-    };
-
-    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
-
+    // Upload the image to Cloudinary
     const updatedData = {
       username: req.body.username,
     };
 
-    if (req.file) updatedData.photo = '/' + req.file.filename;
+    if (req.file) {
+      const { url, public_id } = await uploadImage(req.file.path);
+      updatedData.photo = url;
+      updatedData.public_id = public_id;
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
@@ -68,9 +63,17 @@ exports.updateUser = async (req, res, next) => {
 
     user.password = undefined;
 
-    if (req.file) {
-      await deleteFile(__dirname + '/../public' + user.photo);
-    }
+    // email queue
+    const emailData = {
+      viewFileName: 'updateProfile',
+      data: {
+        name: user.username,
+      },
+      to: user.email,
+      subject: 'Profile has been updated.',
+    };
+
+    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
 
     return responseFn(
       res,
@@ -97,6 +100,14 @@ exports.deleteUser = async (req, res, next) => {
     }
 
     await User.findByIdAndDelete(req.user._id);
+
+    const recipeIds = await Recipe.find({ userId: req.user._id }).select(
+      'recipeId'
+    );
+
+    await FavoriteRecipe.deleteMany({ recipeId: { $in: recipeIds } });
+
+    await Recipe.deleteMany({ userId: req.user._id });
 
     await deleteFile(__dirname + '/../public' + user.photo);
 

@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
         name: username,
       },
       to: email,
-      subject: 'Welcome From My Application.',
+      subject: 'Welcome From My Foodie Application.',
     };
 
     emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
