@@ -28,6 +28,10 @@ const recipeSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    username: {
+      type: String,
+      required: true,
+    },
     public_id: {
       type: String,
       required: true,

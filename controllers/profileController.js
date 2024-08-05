@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 const bcrypt = require('bcrypt');
 
@@ -7,8 +6,11 @@ const FavoriteRecipe = require('../model/favoriteRecipe');
 const Recipe = require('../model/recipe');
 const responseFn = require('../ultis/responseFn');
 const emailQueue = require('../queues/emailQueue');
-const deleteFile = require('../ultis/deleteFile');
-const { uploadImage } = require('./uploadController');
+const {
+  uploadImage,
+  deleteImage,
+  deleteImages,
+} = require('./uploadController');
 
 exports.getUserData = async (req, res, next) => {
   try {
@@ -41,12 +43,17 @@ exports.updateUser = async (req, res, next) => {
       });
     }
 
-    // Upload the image to Cloudinary
     const updatedData = {
       username: req.body.username,
     };
 
+    // If a new file is uploaded, delete the old image and upload the new one else create new image
     if (req.file) {
+      // Delete user's profile previous image from Cloudinary
+      if (user.public_id) {
+        await deleteImage(user.public_id);
+      }
+
       const { url, public_id } = await uploadImage(req.file.path);
       updatedData.photo = url;
       updatedData.public_id = public_id;
@@ -98,18 +105,41 @@ exports.deleteUser = async (req, res, next) => {
         `This ${req.user._id} Id has found no user.`
       );
     }
+    // Delete user's profile image from Cloudinary
+    if (user.public_id) {
+      await deleteImage(user.public_id);
+    }
 
-    await User.findByIdAndDelete(req.user._id);
-
-    const recipeIds = await Recipe.find({ userId: req.user._id }).select(
-      'recipeId'
+    // Get the public_id of all recipes created by the user
+    const userCreatedRecipes = await Recipe.find({ userId: user._id }).select(
+      'public_id'
     );
 
+    // Extract public_ids from the user's recipes
+    const publicIds = userCreatedRecipes.map((recipe) => recipe.public_id);
+
+    // Delete all images of recipes created by the user from Cloudinary
+    if (publicIds.length > 0) {
+      await deleteImages(publicIds);
+    }
+
+    // Delete user
+    await User.findByIdAndDelete(user._id);
+
+    // Get all the recipe IDs created by the user
+    const recipeDocuments = await Recipe.find({ userId: user._id }).select(
+      '_id'
+    );
+    const recipeIds = recipeDocuments.map((recipe) => recipe._id);
+
+    // $in: A MongoDB query operator that matches any of the values specified in an array
+    // await User.find({name : {$in : ["david","peter"]}}) -> return all documents that match david peter in name field
+    // await User.find({name : {$nin : ["david","peter"]}}) -> return all documents that don't match david peter in name field
     await FavoriteRecipe.deleteMany({ recipeId: { $in: recipeIds } });
 
-    await Recipe.deleteMany({ userId: req.user._id });
+    await FavoriteRecipe.deleteMany({ userId: user._id });
 
-    await deleteFile(__dirname + '/../public' + user.photo);
+    await Recipe.deleteMany({ userId: user._id });
 
     return res.status(204).json(user);
   } catch (error) {

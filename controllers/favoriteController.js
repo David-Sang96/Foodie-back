@@ -5,22 +5,23 @@ const Recipe = require('../model/recipe');
 const responseFn = require('../ultis/responseFn');
 
 exports.getAllFavoriteRecipes = async (req, res, next) => {
-  console.log(req.query);
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 6;
+    const limit = parseInt(req.query.limit) || 8;
 
     const userId = req.user._id.toString();
     const favoriteRecipes = await FavoriteRecipe.find({ userId }).select(
       'recipeId'
     );
 
-    console.log(favoriteRecipes);
     const recipeIds = favoriteRecipes.map((fav) => fav.recipeId);
-    const query = Recipe.find({ _id: { $in: recipeIds } });
-    const recipes = await query.skip((page - 1) * limit).limit(limit);
-    // use clone cuz Query was already executed:
-    const totalFavoriteRecipes = await query.clone().countDocuments();
+    const recipes = await Recipe.find({ _id: { $in: recipeIds } })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const totalFavoriteRecipes = await Recipe.find({
+      _id: { $in: recipeIds },
+    }).countDocuments();
     const totalPages = Math.ceil(totalFavoriteRecipes / limit);
 
     return res.json({

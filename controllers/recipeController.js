@@ -1,10 +1,8 @@
-/* eslint-disable no-undef */ /* eslint-disable no-unused-vars */
 const mongoose = require('mongoose');
 
 const Recipe = require('../model/recipe');
 const FavoriteRecipe = require('../model/favoriteRecipe');
 const responseFn = require('../ultis/responseFn');
-const deleteFile = require('../ultis/deleteFile');
 const User = require('../model/user');
 const emailQueue = require('../queues/emailQueue');
 const { uploadImage, deleteImage } = require('./uploadController');
@@ -12,7 +10,7 @@ const { uploadImage, deleteImage } = require('./uploadController');
 exports.getRecipes = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 6;
+    const limit = parseInt(req.query.limit) || 8;
 
     const recipes = await Recipe.find()
       .skip((page - 1) * limit)
@@ -27,7 +25,8 @@ exports.getRecipes = async (req, res, next) => {
     });
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', 'internet server error');
+    error.statusCode = 500;
+    next(error);
   }
 };
 
@@ -45,7 +44,8 @@ exports.getSingleRecipe = async (req, res, next) => {
     return res.json(recipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', error.message);
+    error.statusCode = 500;
+    next(error);
   }
 };
 
@@ -64,6 +64,7 @@ exports.createRecipe = async (req, res, next) => {
       photo: url,
       userId: req.user._id,
       public_id,
+      username: req.user.username,
     });
 
     // send mails to all users (marketing email)
@@ -73,22 +74,27 @@ exports.createRecipe = async (req, res, next) => {
       .filter((email) => email !== req.user.email);
 
     // email queue
-    const emailData = {
-      viewFileName: 'email',
-      data: {
-        name: req.user.username,
-        recipeTitle: title,
-      },
-      to: userEmails,
-      subject: 'New Recipe is created by someone.',
-    };
+    if (userEmails.length > 0) {
+      const emailData = {
+        viewFileName: 'email',
+        data: {
+          name: req.user.username,
+          recipeTitle: title,
+        },
+        to: userEmails,
+        subject: 'New Recipe is created by someone.',
+      };
 
-    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+      emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+    } else {
+      console.log('No other users to send the email to.');
+    }
 
     return res.status(201).json(newRecipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', error.message);
+    error.statusCode = 500;
+    next(error);
   }
 };
 
@@ -101,14 +107,17 @@ exports.updateRecipe = async (req, res, next) => {
       return responseFn(res, 400, 'fail', `this ${id} is invalid.`);
     }
 
-    // Find the existing recipe to get the current photo path
     const recipe = await Recipe.findById(id);
     if (!recipe) {
       return responseFn(res, 404, 'fail', `This ${id} Id has found no recipe`);
     }
 
-    if (req.user._id.toString() !== recipe.userId.toString()) {
+    if (!req.user || req.user._id.toString() !== recipe.userId.toString()) {
       return responseFn(res, 401, 'fail', "You don't have access.");
+    }
+
+    if (recipe.public_id) {
+      await deleteImage(recipe.public_id);
     }
 
     // Upload the image to Cloudinary
@@ -131,7 +140,8 @@ exports.updateRecipe = async (req, res, next) => {
     return res.json(updatedRecipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', error.message);
+    error.statusCode = 500;
+    next(error);
   }
 };
 
@@ -160,28 +170,33 @@ exports.deleteRecipe = async (req, res, next) => {
     return res.status(204).json(recipe);
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', error.message);
+    error.statusCode = 500;
+    next(error);
   }
 };
 
 exports.filterRecipes = async (req, res, next) => {
   try {
     const { searchKey } = req.query;
+    console.log(searchKey);
     if (!searchKey) {
       return responseFn(res, 400, 'fail', 'This filter is invalid.');
     }
+
     const recipes = await Recipe.find({
       $or: [
         { title: { $regex: searchKey, $options: 'i' } },
         { description: { $regex: searchKey, $options: 'i' } },
       ],
     });
+
     if (!recipes || recipes.length === 0) {
-      return responseFn(res, 400, 'fail', 'No recipe found.');
+      return responseFn(res, 404, 'fail', 'No recipe found.');
     }
     return res.json({ recipes });
   } catch (error) {
     console.log(error);
-    return responseFn(res, 500, 'fail', error.message);
+    error.statusCode = 500;
+    next(error);
   }
 };
