@@ -11,6 +11,7 @@ const {
   updateRecipe,
   deleteRecipe,
   filterRecipes,
+  getCurrentUserRecipes,
 } = require('../controllers/recipeController');
 const uploadFile = require('../ultis/upload');
 const handleValidatorErrMsg = require('../middlewares/handleValidatorMsg');
@@ -82,6 +83,8 @@ router
   );
 
 router.route('/filter').get(validateSearchKey, filterRecipes);
+
+router.route('/user').get(getCurrentUserRecipes);
 
 router
   .route('/:id')

@@ -30,6 +30,31 @@ exports.getRecipes = async (req, res, next) => {
   }
 };
 
+exports.getCurrentUserRecipes = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8;
+
+    const recipes = await Recipe.find({ userId: req.user._id })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const totalRecipes = await Recipe.find({
+      userId: req.user._id,
+    }).countDocuments();
+    const totalPages = Math.ceil(totalRecipes / limit);
+    return res.json({
+      recipes,
+      totalRecipes,
+      totalPages,
+    });
+  } catch (error) {
+    console.log(error);
+    error.statusCode = 500;
+    next(error);
+  }
+};
+
 exports.getSingleRecipe = async (req, res, next) => {
   try {
     const { id } = req.params;
