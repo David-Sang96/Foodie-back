@@ -9,10 +9,12 @@ const { uploadImage, deleteImage } = require('./uploadController');
 
 exports.getRecipes = async (req, res, next) => {
   try {
+    if (req.query.page < 0) return;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 8;
 
     const recipes = await Recipe.find()
+      .populate('userId', 'photo')
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -32,6 +34,7 @@ exports.getRecipes = async (req, res, next) => {
 
 exports.getCurrentUserRecipes = async (req, res, next) => {
   try {
+    if (req.query.page < 0) return;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 8;
 
@@ -203,7 +206,9 @@ exports.deleteRecipe = async (req, res, next) => {
 exports.filterRecipes = async (req, res, next) => {
   try {
     const { searchKey } = req.query;
-    console.log(searchKey);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8;
+
     if (!searchKey) {
       return responseFn(res, 400, 'fail', 'This filter is invalid.');
     }
@@ -213,12 +218,25 @@ exports.filterRecipes = async (req, res, next) => {
         { title: { $regex: searchKey, $options: 'i' } },
         { description: { $regex: searchKey, $options: 'i' } },
       ],
-    });
+    })
+      .populate('userId', 'photo')
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     if (!recipes || recipes.length === 0) {
       return responseFn(res, 404, 'fail', 'No recipe found.');
     }
-    return res.json({ recipes });
+
+    const totalRecipes = await Recipe.find({
+      $or: [
+        { title: { $regex: searchKey, $options: 'i' } },
+        { description: { $regex: searchKey, $options: 'i' } },
+      ],
+    }).countDocuments();
+
+    const totalPages = Math.ceil(totalRecipes / limit);
+
+    return res.json({ recipes, totalPages });
   } catch (error) {
     console.log(error);
     error.statusCode = 500;

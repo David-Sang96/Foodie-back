@@ -1,11 +1,12 @@
 /* eslint-disable no-unused-vars */
-const mongoose = require('mongoose');
+
 const FavoriteRecipe = require('../model/favoriteRecipe');
 const Recipe = require('../model/recipe');
 const responseFn = require('../ultis/responseFn');
 
 exports.getAllFavoriteRecipes = async (req, res, next) => {
   try {
+    if (req.query.page < 0) return;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 8;
 
@@ -16,6 +17,7 @@ exports.getAllFavoriteRecipes = async (req, res, next) => {
 
     const recipeIds = favoriteRecipes.map((fav) => fav.recipeId);
     const recipes = await Recipe.find({ _id: { $in: recipeIds } })
+      .populate('userId', 'photo')
       .skip((page - 1) * limit)
       .limit(limit);
 
