@@ -15,8 +15,8 @@ mongoose
   .connect(DB)
   .then(() => {
     console.log('Connected to database');
-    app.listen(port, '127.0.0.1', () => {
-      console.log(`server is listening on port ${port}...`);
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`Server is listening on port ${port}...`);
       cron.schedule('*/4 * * * * *', () => {
         // to programmatically run task on every given specific time
         // console.log('running a task every 4 seconds');
