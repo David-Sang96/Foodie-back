@@ -15,7 +15,9 @@ const app = express();
 
 app.use(morgan('dev'));
 // allow cookie to set and remove on localhost:2500
-app.use(cors({ origin: 'http://localhost:2500', credentials: true }));
+app.use(
+  cors({ origin: 'https://foodie-back-66fa.onrender.com', credentials: true })
+);
 app.use(cookieParser());
 
 app.set('views', './views');
