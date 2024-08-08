@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
@@ -15,9 +16,7 @@ const app = express();
 
 app.use(morgan('dev'));
 // allow cookie to set and remove on localhost:2500
-app.use(
-  cors({ origin: 'https://foodie-front-r4x6.onrender.com', credentials: true })
-);
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(cookieParser());
 
 app.set('views', './views');
