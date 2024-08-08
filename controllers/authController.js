@@ -56,7 +56,15 @@ exports.logout = (req, res) => {
 };
 
 exports.authUser = (req, res) => {
-  return res.json(req.user);
+  const user = {};
+  user.createdAt = req.user.createdAt;
+  user.email = req.user.email;
+  user.photo = req.user.photo;
+  user.updatedAt = req.user.updatedAt;
+  user.username = req.user.username;
+  user._id = req.user._id;
+
+  return res.json(user);
 };
 
 exports.forgotPassword = async (req, res) => {

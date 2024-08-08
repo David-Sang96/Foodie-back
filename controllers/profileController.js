@@ -66,9 +66,12 @@ exports.updateUser = async (req, res, next) => {
         runValidators: true,
         new: true,
       }
-    );
+    ).select('-__v');
 
-    user.password = undefined;
+    updatedUser.password = undefined;
+    updatedUser.passwordResetToken = undefined;
+    updatedUser.passwordResetTokenExpires = undefined;
+    updatedUser.public_id = undefined;
 
     // email queue
     const emailData = {

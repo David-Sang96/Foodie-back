@@ -17,6 +17,9 @@ const createSendToken = (res, user, statusCode) => {
   });
 
   user.password = undefined;
+  user.passwordResetToken = undefined;
+  user.passwordResetTokenExpires = undefined;
+  user.public_id = undefined;
 
   res.status(statusCode).json({
     status: 'success',
