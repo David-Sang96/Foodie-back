@@ -124,6 +124,15 @@ exports.deleteUser = async (req, res, next) => {
       await deleteImages(publicIds);
     }
 
+    await sendEmail({
+      viewFileName: 'delete',
+      data: {
+        name: user.username,
+      },
+      to: user.email,
+      subject: 'We are sad to see you go.',
+    });
+
     // Delete user
     await User.findByIdAndDelete(user._id);
 
