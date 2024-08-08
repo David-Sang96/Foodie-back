@@ -4,8 +4,8 @@ const Recipe = require('../model/recipe');
 const FavoriteRecipe = require('../model/favoriteRecipe');
 const responseFn = require('../ultis/responseFn');
 const User = require('../model/user');
-const emailQueue = require('../queues/emailQueue');
 const { uploadImage, deleteImage } = require('./uploadController');
+const sendEmail = require('../ultis/sendEmail');
 
 exports.getRecipes = async (req, res, next) => {
   try {
@@ -103,7 +103,7 @@ exports.createRecipe = async (req, res, next) => {
 
     // email queue
     if (userEmails.length > 0) {
-      const emailData = {
+      await sendEmail({
         viewFileName: 'email',
         data: {
           name: req.user.username,
@@ -111,9 +111,7 @@ exports.createRecipe = async (req, res, next) => {
         },
         to: userEmails,
         subject: 'New Recipe is created by someone.',
-      };
-
-      emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+      });
     } else {
       console.log('No other users to send the email to.');
     }

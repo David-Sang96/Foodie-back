@@ -6,7 +6,6 @@ const User = require('../model/user');
 const createSendToken = require('../ultis/createSendToken');
 const responseFn = require('../ultis/responseFn');
 const sendEmail = require('../ultis/sendEmail');
-const emailQueue = require('../queues/emailQueue');
 
 exports.register = async (req, res) => {
   try {
@@ -19,16 +18,14 @@ exports.register = async (req, res) => {
     );
 
     // email queue
-    const emailData = {
+    await sendEmail({
       viewFileName: 'welcomeUser',
       data: {
         name: username,
       },
       to: email,
       subject: 'Welcome From My Foodie Application.',
-    };
-
-    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+    });
 
     createSendToken(res, user, 201);
   } catch (error) {
@@ -126,16 +123,14 @@ exports.resetPassword = async (req, res) => {
     }
 
     // email queue
-    const emailData = {
+    await sendEmail({
       viewFileName: 'passwordUpdate',
       data: {
         name: user.username,
       },
       to: user.email,
       subject: 'Password Reset Success.',
-    };
-
-    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+    });
 
     user.password = req.body.password;
     user.passwordConfirmation = req.body.passwordConfirmation;
@@ -164,16 +159,14 @@ exports.updatePassword = async (req, res) => {
     }
 
     // email queue
-    const emailData = {
+    await sendEmail({
       viewFileName: 'passwordUpdate',
       data: {
         name: user.username,
       },
       to: user.email,
       subject: 'Password Update Success.',
-    };
-
-    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+    });
 
     user.password = newPassword;
     user.passwordConfirmation = passwordConfirmation;

@@ -5,12 +5,12 @@ const User = require('../model/user');
 const FavoriteRecipe = require('../model/favoriteRecipe');
 const Recipe = require('../model/recipe');
 const responseFn = require('../ultis/responseFn');
-const emailQueue = require('../queues/emailQueue');
 const {
   uploadImage,
   deleteImage,
   deleteImages,
 } = require('./uploadController');
+const sendEmail = require('../ultis/sendEmail');
 
 exports.getUserData = async (req, res, next) => {
   try {
@@ -74,16 +74,14 @@ exports.updateUser = async (req, res, next) => {
     updatedUser.public_id = undefined;
 
     // email queue
-    const emailData = {
+    await sendEmail({
       viewFileName: 'updateProfile',
       data: {
         name: user.username,
       },
       to: user.email,
       subject: 'Profile has been updated.',
-    };
-
-    emailQueue.add(emailData, { attempts: 3, backoff: 5000 });
+    });
 
     return responseFn(
       res,
